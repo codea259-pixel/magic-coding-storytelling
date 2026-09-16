@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Quest: Two Missions</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --bg: #0B1220;
+  --panel: #131B2E;
+  --panel-2: #0E1526;
+  --editor-bg: #0A1020;
+  --line: #263254;
+  --text: #E7ECF5;
+  --text-dim: #8B93AC;
+  --cyan: #5EEAD4;
+  --amber: #F2B463;
+  --coral: #F2795E;
+  --junior: #FFCB77;
+  --accent: var(--cyan);
+  --accent-ink: #06251F;
+  --font-serif: 'Lora', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1220; --panel: #131B2E; --panel-2: #0E1526; --editor-bg: #0A1020;
+    --line: #263254; --text: #E7ECF5; --text-dim: #8B93AC;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1220; --panel: #131B2E; --panel-2: #0E1526; --editor-bg: #0A1020;
+  --line: #263254; --text: #E7ECF5; --text-dim: #8B93AC;
+}
+body[data-track="junior"] { --accent: var(--junior); --accent-ink: #2B1B00; }
+body[data-track="crew"] { --accent: var(--cyan); --accent-ink: #06251F; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-serif); min-height: 100vh; }
+.app { max-width: 1180px; margin: 0 auto; padding: 20px 20px 60px; }
+a { color: var(--accent); }
+
+/* ---------- Mission select ---------- */
+.select-screen { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+.select-screen h1 { font-size: 1.7rem; margin-bottom: 4px; }
+.select-screen .lede { color: var(--text-dim); margin-bottom: 28px; font-size: 1.02rem; }
+.mission-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 700px) { .mission-grid { grid-template-columns: 1fr; } }
+.mission-card {
+  text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 24px; cursor: pointer; font-family: var(--font-serif); color: var(--text);
+  transition: border-color 0.2s, transform 0.15s;
+}
+.mission-card:hover { border-color: var(--card-accent, var(--cyan)); transform: translateY(-2px); }
+.mission-card .kicker { font-size: 0.8rem; color: var(--card-accent, var(--cyan)); margin-bottom: 8px; }
+.mission-card h2 { margin: 0 0 10px; font-size: 1.25rem; }
+.mission-card p { margin: 0 0 14px; color: var(--text-dim); line-height: 1.55; font-size: 0.95rem; }
+.mission-card .meta { font-size: 0.8rem; color: var(--text-dim); font-family: var(--font-mono); }
+.mission-card .progress-note { margin-top: 10px; font-size: 0.8rem; color: var(--card-accent, var(--cyan)); }
+#juniorCard { --card-accent: var(--junior); }
+#crewCard { --card-accent: var(--cyan); }
+
+/* ---------- Top bar ---------- */
+.topbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.back-link { background: none; border: none; color: var(--text-dim); font-family: var(--font-serif); font-size: 0.9rem; cursor: pointer; padding: 0 10px 0 0; }
+.back-link:hover { color: var(--accent); }
+.brand-mark { color: var(--accent); font-size: 1.4rem; }
+.brand h1 { font-size: 1.25rem; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+.brand-sub { color: var(--text-dim); font-weight: 400; font-size: 0.95rem; }
+
+.progress-track { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.node { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 6px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); cursor: default; transition: border-color 0.4s ease, background 0.4s ease; }
+.node.unlocked { cursor: pointer; }
+.node .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); transition: background 0.5s ease, box-shadow 0.5s ease; }
+.node.done .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.node.current .dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulse 1.6s ease-in-out infinite; }
+.node span { font-size: 0.78rem; color: var(--text-dim); white-space: nowrap; }
+.node.done span, .node.current span { color: var(--text); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+.track-line { width: 18px; height: 1px; background: var(--line); }
+
+/* ---------- Stage ---------- */
+.stage { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+@media (max-width: 860px) { .stage { grid-template-columns: 1fr; } }
+.story-panel, .code-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+
+.schematic-wrap { margin-bottom: 18px; }
+.schematic-wrap svg { width: 100%; height: auto; display: block; }
+
+.story-text { font-size: 1.02rem; line-height: 1.65; margin-bottom: 18px; }
+.story-text .voice { color: var(--accent); font-weight: 600; }
+.story-text p { margin: 0 0 12px; }
+.story-text p:last-child { margin-bottom: 0; }
+
+.concept-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+.concept-label { margin: 0 0 6px; font-size: 0.8rem; color: var(--text-dim); }
+.concept-card pre { margin: 0; font-family: var(--font-mono); font-size: 0.85rem; color: var(--amber); white-space: pre-wrap; line-height: 1.5; }
+
+.ghost-btn { background: transparent; border: 1px solid var(--line); color: var(--text-dim); padding: 7px 12px; border-radius: 6px; font-family: var(--font-serif); font-size: 0.85rem; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.ghost-btn:hover { border-color: var(--accent); color: var(--text); }
+.ghost-btn.small { padding: 4px 9px; font-size: 0.78rem; }
+
+.hint-text { margin-top: 10px; font-size: 0.92rem; color: var(--amber); border-left: 2px solid var(--amber); padding-left: 10px; line-height: 1.5; }
+
+.editor-header { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px; }
+#codeEditor { width: 100%; min-height: 210px; resize: vertical; background: var(--editor-bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 14px; font-family: var(--font-mono); font-size: 0.9rem; line-height: 1.55; tab-size: 2; }
+#codeEditor:focus { outline: none; border-color: var(--accent); }
+
+.editor-actions { display: flex; justify-content: flex-end; margin: 12px 0; }
+.primary-btn { background: var(--accent); color: var(--accent-ink); border: none; padding: 10px 18px; border-radius: 6px; font-family: var(--font-serif); font-weight: 600; font-size: 0.92rem; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.primary-btn:hover { box-shadow: 0 0 16px rgba(255,255,255,0.15); }
+.primary-btn:active { transform: scale(0.98); }
+
+.console { font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.6; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-height: 70px; max-height: 220px; overflow-y: auto; color: var(--text-dim); }
+.console .log-line { color: var(--text-dim); }
+.console .ok-line { color: var(--accent); }
+.console .fail-line { color: var(--coral); }
+.console .placeholder { color: var(--line); font-style: italic; }
+.console-continue { margin-top: 10px; display: flex; justify-content: flex-end; }
+
+.overlay { position: fixed; inset: 0; background: rgba(6,10,20,0.92); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 10; }
+.overlay-card { max-width: 560px; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 34px; text-align: left; box-shadow: 0 0 40px rgba(255,255,255,0.08); }
+.overlay-card h2 { margin-top: 0; color: var(--accent); font-size: 1.4rem; }
+.overlay-card p { line-height: 1.6; }
+.recap { list-style: none; padding: 0; margin: 18px 0; }
+.recap li { padding: 6px 0; color: var(--text-dim); font-family: var(--font-mono); font-size: 0.85rem; }
+.recap li::before { content: '✓ '; color: var(--accent); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="select-screen" id="selectScreen">
+  <h1>Code Quest</h1>
+  <p class="lede">Two story-driven missions. Both teach real JavaScript — pick the one that fits.</p>
+  <div class="mission-grid">
+    <button class="mission-card" id="juniorCard">
+      <p class="kicker">JUNIOR CADET · ages 6+</p>
+      <h2>Pixel Finds Home 🐾</h2>
+      <p>A lost robot dog needs your help getting home. Four short levels: making Pixel talk, giving it a name, choosing a path, and counting steps.</p>
+      <p class="meta">console.log · variables · if / else · loops — ~20 min</p>
+      <p class="progress-note" id="juniorProgressNote" hidden></p>
+    </button>
+    <button class="mission-card" id="crewCard">
+      <p class="kicker">FULL CREW · all ages</p>
+      <h2>Argus-9: The Last Terminal 🛰️</h2>
+      <p>A drifting space station, a fading AI, and five broken subsystems. Restore power, life support, navigation, comms, and engines with real code.</p>
+      <p class="meta">variables · conditionals · loops · functions · arrays — ~45 min</p>
+      <p class="progress-note" id="crewProgressNote" hidden></p>
+    </button>
+  </div>
+</div>
+
+<div class="app" id="gameApp" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <button class="back-link" id="backBtn">‹ Missions</button>
+      <span class="brand-mark" id="brandMark">◈</span>
+      <h1 id="brandTitle">Title</h1>
+      <span class="brand-sub" id="brandSub">— subtitle</span>
+    </div>
+    <nav class="progress-track" id="progressTrack" aria-label="Level progress"></nav>
+  </header>
+
+  <main class="stage">
+    <section class="story-panel">
+      <div class="schematic-wrap" id="schematicWrap"></div>
+      <div class="story-text" id="storyText"></div>
+      <div class="concept-card">
+        <p class="concept-label">New syntax</p>
+        <pre id="conceptSyntax"></pre>
+      </div>
+      <button class="ghost-btn" id="hintBtn">Need a hint?</button>
+      <p class="hint-text" id="hintText" hidden></p>
+    </section>
+
+    <section class="code-panel">
+      <div class="editor-header">
+        <span id="editorFileName">terminal.js</span>
+        <button class="ghost-btn small" id="resetBtn">Reset code</button>
+      </div>
+      <textarea id="codeEditor" spellcheck="false"></textarea>
+      <div class="editor-actions">
+        <button class="primary-btn" id="runBtn">Run code ▸</button>
+      </div>
+      <div class="console" id="consoleOutput">
+        <span class="placeholder">Output will appear here when you run your code.</span>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="finaleOverlay" hidden>
+  <div class="overlay-card" id="finaleCard"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  function fail(message, logs) { return { success: false, message, logs: logs || [] }; }
+  function succeed(message, logs) { return { success: true, message, logs: logs || [] }; }
+
+  function execute(code, helpers, tailExpr) {
+    const logs = [];
+    const consoleShim = { log: (...args) => logs.push(args.map(a => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ")) };
+    let src = code;
+    if (tailExpr) src += `\nreturn (${tailExpr});`;
+    try {
+      const fn = new Function("helpers", "console", src);
+      const result = fn(helpers, consoleShim);
+      return { ok: true, result, logs };
+    } catch (err) {
+      return { ok: false, error: err.message, logs };
+    }
+  }
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // ================= CREW TRACK =================
+  const CREW_LEVELS = [
+    {
+      key: "lights", label: "Lights",
+      story: [
+        `<p>Emergency lights strobe red. You've just plugged a salvaged terminal into the last working port on <strong>Argus-9</strong> — a research station adrift for six years. A voice crackles through the speaker.</p>`,
+        `<p><span class="voice">ECHO:</span> "Oh — someone's actually here. I'm ECHO, what's left of the station's AI. Most systems are down and I can't fix them myself. But you can, if you know how to talk to me. I only understand real code. Let's start small."</p>`,
+        `<p><span class="voice">ECHO:</span> "First — power. Somewhere under all this rust is a variable that controls the lighting grid. Give it a name, give it a number of at least 50, and let's see something other than red."</p>`
+      ],
+      concept: `let power = 50;`,
+      starter: `// ECHO needs power routed to the lighting grid.\n// Declare a variable called power and set it to 50 or more.\n\nlet power = 0;\n`,
+      hints: [
+        "You'll need the keyword `let`, a name for your variable, and a number.",
+        "Something like: let power = 75; — just make sure the number is 50 or higher."
+      ],
+      test(code) {
+        const r = execute(code, {}, "typeof power !== 'undefined' ? power : undefined");
+        if (!r.ok) return fail(`Error: ${r.error}`, r.logs);
+        if (r.result === undefined) return fail("ECHO can't detect a variable named power. Did you declare it with let power = ...;?", r.logs);
+        if (typeof r.result !== "number") return fail(`power is set to ${JSON.stringify(r.result)}, but it needs to be a number.`, r.logs);
+        if (r.result < 50) return fail(`Power is only at ${r.result}. The grid needs at least 50.`, r.logs);
+        return succeed(`Power routed at ${r.result} units. Lights flicker on across the station.`, r.logs);
+      }
+    },
+    {
+      key: "air", label: "Air",
+      story: [
+        `<p><span class="voice">ECHO:</span> "Better. Now — oxygen. Sensors keep sampling the air, but I need you to watch the number and react. Call <code>helpers.getOxygen()</code> to check it."</p>`,
+        `<p><span class="voice">ECHO:</span> "If it drops below 20, call <code>helpers.activateReserves()</code> immediately. But don't call reserves recklessly — they're limited, so only when it's actually needed."</p>`
+      ],
+      concept: `if (condition) {\n  // do something\n}`,
+      starter: `// helpers.getOxygen() returns the current oxygen level.\n// If it's below 20, call helpers.activateReserves().\n\n`,
+      hints: [
+        "Start with: if (helpers.getOxygen() < 20) { ... }",
+        "Inside the curly braces, call helpers.activateReserves();"
+      ],
+      test(code) {
+        const c1 = { activated: false };
+        const r1 = execute(code, { getOxygen: () => 12, activateReserves: () => { c1.activated = true; } });
+        if (!r1.ok) return fail(`Error: ${r1.error}`, r1.logs);
+        if (!c1.activated) return fail("Oxygen reads 12 — dangerously low — but reserves never kicked in. Check your condition.", r1.logs);
+        const c2 = { activated: false };
+        const r2 = execute(code, { getOxygen: () => 45, activateReserves: () => { c2.activated = true; } });
+        if (!r2.ok) return fail(`Error: ${r2.error}`, r2.logs);
+        if (c2.activated) return fail("Oxygen is fine at 45, but reserves activated anyway. Double-check your < 20 condition.", r2.logs);
+        return succeed("Reserves respond exactly when needed. Life support stabilizes.", r2.logs);
+      }
+    },
+    {
+      key: "nav", label: "Nav",
+      story: [
+        `<p><span class="voice">ECHO:</span> "Lights on, air's breathable. Now let's find a way out. Nav has five sectors to scan before it'll plot a route — one at a time, in order, or the old drives choke."</p>`,
+        `<p><span class="voice">ECHO:</span> "Call <code>helpers.scan(sectorNumber)</code> for sectors 1 through 5."</p>`
+      ],
+      concept: `for (let i = start; i <= end; i++) {\n  // repeat\n}`,
+      starter: `// Scan sectors 1 through 5, in order.\n// Call helpers.scan(sectorNumber) for each one.\n\n`,
+      hints: [
+        "A for loop needs a starting point, a stopping condition, and a step: for (let i = 1; i <= 5; i++) { ... }",
+        "Inside the loop, call: helpers.scan(i);"
+      ],
+      test(code) {
+        const scanned = [];
+        const r = execute(code, { scan: (n) => scanned.push(n) });
+        if (!r.ok) return fail(`Error: ${r.error}`, r.logs);
+        const expected = [1, 2, 3, 4, 5];
+        if (scanned.length === 0) return fail("No sectors were scanned. Did you call helpers.scan(...) inside your loop?", r.logs);
+        if (JSON.stringify(scanned) !== JSON.stringify(expected)) return fail(`Sectors scanned: [${scanned.join(", ")}]. ECHO expected exactly 1 through 5, in order.`, r.logs);
+        return succeed("All five sectors scanned. A clear path lights up on the nav display.", r.logs);
+      }
+    },
+    {
+      key: "comms", label: "Comms",
+      story: [
+        `<p><span class="voice">ECHO:</span> "Good instincts. There's a relay station forty klicks out — if it's still listening, we can call for rescue."</p>`,
+        `<p><span class="voice">ECHO:</span> "Write me something reusable — a function called <code>sendSignal</code> that takes a message, uppercases it, and transmits it with <code>helpers.transmit(...)</code>. We might need to send more than one before this is over."</p>`
+      ],
+      concept: `function sendSignal(message) {\n  // use message\n}`,
+      starter: `// Define a function called sendSignal that takes a message,\n// uppercases it, and sends it with helpers.transmit(...).\n\nfunction sendSignal(message) {\n\n}\n\n// Call it below:\nsendSignal("sos");\n`,
+      hints: [
+        "Strings have a built-in .toUpperCase() method: message.toUpperCase()",
+        "Inside the function: helpers.transmit(message.toUpperCase());"
+      ],
+      test(code) {
+        const transmitted = [];
+        const r = execute(code, { transmit: (msg) => transmitted.push(msg) }, `(typeof sendSignal === 'function') ? (sendSignal('ping'), true) : false`);
+        if (!r.ok) return fail(`Error: ${r.error}`, r.logs);
+        if (r.result !== true) return fail("ECHO can't find a function called sendSignal. Did you define it with function sendSignal(message) { ... }?", r.logs);
+        if (transmitted.length < 2) return fail("sendSignal needs to call helpers.transmit(...) every time it's used.", r.logs);
+        const [first, second] = transmitted;
+        if (first !== "SOS") return fail(`Calling sendSignal("sos") transmitted "${first}" — check that you're uppercasing the message.`, r.logs);
+        if (second !== "PING") return fail(`sendSignal only seems to work for "sos" specifically. Transmitting "ping" produced "${second}" instead of "PING".`, r.logs);
+        return succeed("Signal transmitted and confirmed. A response crackles back from the relay station.", r.logs);
+      }
+    },
+    {
+      key: "engines", label: "Engines",
+      story: [
+        `<p><span class="voice">ECHO:</span> "This is it. Three thrusters — but B took shrapnel years ago. Firing it will tear the hull."</p>`,
+        `<p><span class="voice">ECHO:</span> "Loop through <code>thrusters</code>. Fire what works with <code>helpers.fire(thruster)</code>, skip what doesn't with <code>helpers.skip(thruster)</code>. Do it in order — after this, we're either flying or we're not."</p>`
+      ],
+      concept: `for (const item of array) {\n  if (item === "x") { ... }\n  else { ... }\n}`,
+      starter: `const thrusters = ["A", "B", "C"];\n\n// Loop through thrusters. Thruster "B" is damaged:\n// - if it's "B", call helpers.skip(thruster)\n// - otherwise, call helpers.fire(thruster)\n\n`,
+      hints: [
+        "Use a for...of loop: for (const t of thrusters) { ... }",
+        "Inside: if (t === \"B\") { helpers.skip(t); } else { helpers.fire(t); }"
+      ],
+      test(code) {
+        const sequence = [];
+        const r = execute(code, { fire: (t) => sequence.push({ type: "fire", t }), skip: (t) => sequence.push({ type: "skip", t }) });
+        if (!r.ok) return fail(`Error: ${r.error}`, r.logs);
+        const expected = [{ type: "fire", t: "A" }, { type: "skip", t: "B" }, { type: "fire", t: "C" }];
+        if (sequence.length === 0) return fail("No thrusters responded. Did you loop through the thrusters array?", r.logs);
+        if (JSON.stringify(sequence) !== JSON.stringify(expected)) return fail(`Sequence was: ${sequence.map(s => `${s.type}(${s.t})`).join(", ")}. ECHO expected fire(A), skip(B), fire(C).`, r.logs);
+        return succeed("All thrusters respond in sequence. Argus-9 breaks orbit.", r.logs);
+      }
+    }
+  ];
+
+  // ================= JUNIOR TRACK =================
+  const JUNIOR_LEVELS = [
+    {
+      key: "talk", label: "Say Hi",
+      story: [
+        `<p>Deep in a junkyard, a little robot dog blinks its eyes open. Its name tag is missing and its voice box only goes <em>beep</em>. That's <strong>Pixel</strong>.</p>`,
+        `<p><span class="voice">You:</span> Let's teach Pixel to talk! In code, <code>console.log(...)</code> makes words appear on the screen.</p>`,
+        `<p>Try writing <code>console.log("Hello!");</code> — or give Pixel your own greeting.</p>`
+      ],
+      concept: `console.log("Hello!");`,
+      starter: `// Make Pixel say hello!\n// Try: console.log("Hello!");\n\n`,
+      hints: [
+        "Type console.log( then your message in quotes, then ) and a ;",
+        'Example: console.log("Hi Pixel!");'
+      ],
+      test(code) {
+        const r = execute(code, {});
+        if (!r.ok) return fail(`That code has a little hiccup: ${r.error}`, r.logs);
+        const hasMessage = r.logs.some((l) => l && l.trim().length > 0);
+        if (!hasMessage) return fail('Pixel didn\'t say anything yet! Try: console.log("your message");', r.logs);
+        return succeed(`Pixel beeps happily: "${r.logs[0]}" 🐾`, r.logs);
+      }
+    },
+    {
+      key: "name", label: "Name",
+      story: [
+        `<p><span class="voice">You:</span> Pixel needs a name tag! In code, we use <code>let</code> to make a variable — a labeled box that holds something.</p>`,
+        `<p>Try: <code>let name = "Pixel";</code> — or pick any name you like.</p>`
+      ],
+      concept: `let name = "Pixel";`,
+      starter: `// Give Pixel a name!\nlet name = "";\n`,
+      hints: [
+        "You'll need the word let, then a name for your box, then = and some text in quotes.",
+        'Example: let name = "Pixel";'
+      ],
+      test(code) {
+        const r = execute(code, {}, "typeof name !== 'undefined' ? name : undefined");
+        if (!r.ok) return fail(`Error: ${r.error}`, r.logs);
+        if (r.result === undefined) return fail('Pixel can\'t find a variable called name. Try: let name = "Pixel";', r.logs);
+        if (typeof r.result !== "string" || r.result.trim() === "") return fail("Pixel needs a real name in quotes, not empty!", r.logs);
+        return succeed(`Pixel wags its tail — its name is ${r.result}! 🐶`, r.logs);
+      }
+    },
+    {
+      key: "path", label: "Path",
+      story: [
+        `<p>Pixel reaches a fork in the road. A little light on the ground glows either green or red.</p>`,
+        `<p><span class="voice">You:</span> Check it with <code>helpers.getLight()</code>. If it's <code>"green"</code>, call <code>helpers.goLeft()</code>. Otherwise, call <code>helpers.goRight()</code>.</p>`
+      ],
+      concept: `if (condition) {\n  // ...\n} else {\n  // ...\n}`,
+      starter: `// helpers.getLight() returns "green" or "red".\n// Go left if it's green, otherwise go right.\n\n`,
+      hints: [
+        'Start with: if (helpers.getLight() === "green") { ... }',
+        "Add an else block after the if block, and call helpers.goRight() inside it."
+      ],
+      test(code) {
+        const c1 = { left: false, right: false };
+        const r1 = execute(code, { getLight: () => "green", goLeft: () => { c1.left = true; }, goRight: () => { c1.right = true; } });
+        if (!r1.ok) return fail(`Error: ${r1.error}`, r1.logs);
+        if (!c1.left || c1.right) return fail("The light was green, but Pixel didn't go left. Check your if statement.", r1.logs);
+        const c2 = { left: false, right: false };
+        const r2 = execute(code, { getLight: () => "red", goLeft: () => { c2.left = true; }, goRight: () => { c2.right = true; } });
+        if (!r2.ok) return fail(`Error: ${r2.error}`, r2.logs);
+        if (!c2.right || c2.left) return fail("The light was red, but Pixel didn't go right. Check your else.", r2.logs);
+        return succeed("Pixel picks the right path every time! 🚦", r2.logs);
+      }
+    },
+    {
+      key: "steps", label: "Steps",
+      story: [
+        `<p>Home is just three steps away!</p>`,
+        `<p><span class="voice">You:</span> Use a loop to call <code>helpers.step()</code> three times, once for each step.</p>`
+      ],
+      concept: `for (let i = 1; i <= 3; i++) {\n  // ...\n}`,
+      starter: `// Make Pixel take 3 steps.\n// Call helpers.step() three times using a loop.\n\n`,
+      hints: [
+        "A for loop repeats code: for (let i = 1; i <= 3; i++) { ... }",
+        "Inside the loop, call: helpers.step();"
+      ],
+      test(code) {
+        let steps = 0;
+        const r = execute(code, { step: () => { steps++; } });
+        if (!r.ok) return fail(`Error: ${r.error}`, r.logs);
+        if (steps === 0) return fail("Pixel didn't move. Did you call helpers.step()?", r.logs);
+        if (steps !== 3) return fail(`Pixel took ${steps} step(s), but home is exactly 3 steps away.`, r.logs);
+        return succeed("Pixel bounds home, tail wagging! 🏡", r.logs);
+      }
+    }
+  ];
+
+  // ================= TRACK DEFINITIONS =================
+  const TRACKS = {
+    crew: {
+      key: "crew", title: "Argus-9", subtitle: "— the last terminal", mark: "◈", levels: CREW_LEVELS,
+      finale: {
+        heading: "Argus-9 breaks orbit",
+        body: [
+          `<p>The hull groans. Thruster A ignites, B stays dark and silent, C roars to life. For the first time in six years, the station is moving toward something instead of drifting.</p>`,
+          `<p><span class="voice">ECHO:</span> "We're moving. Thank you — for the variables, the conditions, the loops, the functions, all of it. Real code, real rescue."</p>`
+        ],
+        recap: ["Variables — storing values with let", "Conditionals — branching with if / else", "Loops — repeating with for", "Functions — reusable code with function", "Arrays — iterating with for...of"]
+      }
+    },
+    junior: {
+      key: "junior", title: "Pixel Finds Home", subtitle: "— a coding adventure", mark: "🐾", levels: JUNIOR_LEVELS,
+      finale: {
+        heading: "Pixel is home! 🏡",
+        body: [
+          `<p>The porch light flickers on. Pixel's family runs outside, and its little tail-light blinks with joy.</p>`,
+          `<p><span class="voice">Pixel:</span> *happy beeping* — you taught Pixel to talk, gave it a name, helped it choose the right path, and counted its steps all the way home.</p>`
+        ],
+        recap: ["Talking to the screen with console.log", "Storing values with let", "Making decisions with if / else", "Repeating actions with a loop"]
+      }
+    }
+  };
+
+  // ================= Engine =================
+  let currentTrack = null;
+  let state = { current: 0, completed: [] };
+  let hintStep = 0;
+
+  const selectScreen = document.getElementById("selectScreen");
+  const gameApp = document.getElementById("gameApp");
+  const juniorCard = document.getElementById("juniorCard");
+  const crewCard = document.getElementById("crewCard");
+  const juniorProgressNote = document.getElementById("juniorProgressNote");
+  const crewProgressNote = document.getElementById("crewProgressNote");
+  const backBtn = document.getElementById("backBtn");
+  const brandMark = document.getElementById("brandMark");
+  const brandTitle = document.getElementById("brandTitle");
+  const brandSub = document.getElementById("brandSub");
+  const progressTrack = document.getElementById("progressTrack");
+  const schematicWrap = document.getElementById("schematicWrap");
+  const storyText = document.getElementById("storyText");
+  const conceptSyntax = document.getElementById("conceptSyntax");
+  const hintBtn = document.getElementById("hintBtn");
+  const hintText = document.getElementById("hintText");
+  const codeEditor = document.getElementById("codeEditor");
+  const editorFileName = document.getElementById("editorFileName");
+  const resetBtn = document.getElementById("resetBtn");
+  const runBtn = document.getElementById("runBtn");
+  const consoleOutput = document.getElementById("consoleOutput");
+  const finaleOverlay = document.getElementById("finaleOverlay");
+  const finaleCard = document.getElementById("finaleCard");
+
+  function progressKey(trackKey) { return "codequest-progress-" + trackKey; }
+  function draftKey(trackKey, i) { return "codequest-draft-" + trackKey + "-" + i; }
+
+  function loadState(trackKey) {
+    const fresh = { current: 0, completed: TRACKS[trackKey].levels.map(() => false) };
+    try {
+      const raw = localStorage.getItem(progressKey(trackKey));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.completed) && parsed.completed.length === TRACKS[trackKey].levels.length) return parsed;
+      }
+    } catch (e) { /* ignore */ }
+    return fresh;
+  }
+  function saveState() { try { localStorage.setItem(progressKey(currentTrack.key), JSON.stringify(state)); } catch (e) {} }
+  function loadDraft(i) { try { return localStorage.getItem(draftKey(currentTrack.key, i)); } catch (e) { return null; } }
+  function saveDraft(i, code) { try { localStorage.setItem(draftKey(currentTrack.key, i), code); } catch (e) {} }
+
+  function progressSummary(trackKey) {
+    const s = loadState(trackKey);
+    const done = s.completed.filter(Boolean).length;
+    const total = TRACKS[trackKey].levels.length;
+    if (done === 0) return null;
+    return done === total ? "Completed! Play again anytime." : `${done}/${total} levels complete — pick up where you left off.`;
+  }
+
+  function refreshSelectScreen() {
+    const jp = progressSummary("junior");
+    const cp = progressSummary("crew");
+    if (jp) { juniorProgressNote.textContent = jp; juniorProgressNote.hidden = false; } else { juniorProgressNote.hidden = true; }
+    if (cp) { crewProgressNote.textContent = cp; crewProgressNote.hidden = false; } else { crewProgressNote.hidden = true; }
+  }
+
+  function openTrack(trackKey) {
+    currentTrack = TRACKS[trackKey];
+    state = loadState(trackKey);
+    hintStep = 0;
+    document.body.setAttribute("data-track", trackKey);
+    brandMark.textContent = currentTrack.mark;
+    brandTitle.textContent = currentTrack.title;
+    brandSub.textContent = currentTrack.subtitle;
+    selectScreen.hidden = true;
+    gameApp.hidden = false;
+    finaleOverlay.hidden = true;
+    if (state.completed.every(Boolean)) { renderFinale(); finaleOverlay.hidden = false; }
+    renderProgressTrack();
+    renderSchematic();
+    renderLevel();
+  }
+
+  function backToSelect() {
+    gameApp.hidden = true;
+    finaleOverlay.hidden = true;
+    selectScreen.hidden = false;
+    refreshSelectScreen();
+  }
+
+  juniorCard.addEventListener("click", () => openTrack("junior"));
+  crewCard.addEventListener("click", () => openTrack("crew"));
+  backBtn.addEventListener("click", backToSelect);
+
+  function renderSchematic() {
+    const levels = currentTrack.levels;
+    const span = 340, startX = 30, n = levels.length;
+    const positions = levels.map((_, i) => startX + (n === 1 ? 0 : (span * i) / (n - 1)));
+    let nodes = "";
+    levels.forEach((lvl, i) => {
+      const done = state.completed[i];
+      const isCurrent = i === state.current && !done;
+      const color = done ? "var(--accent)" : (isCurrent ? "var(--amber)" : "var(--line)");
+      nodes += `<circle cx="${positions[i]}" cy="40" r="9" fill="${color}" opacity="${done || isCurrent ? 1 : 0.6}"><title>${lvl.label}</title></circle>`;
+      if (i > 0) {
+        const prevDone = state.completed[i - 1];
+        nodes += `<line x1="${positions[i - 1] + 9}" y1="40" x2="${positions[i] - 9}" y2="40" stroke="${prevDone ? 'var(--accent)' : 'var(--line)'}" stroke-width="2" />`;
+      }
+    });
+    schematicWrap.innerHTML = `<svg viewBox="0 0 400 80" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Level progress schematic">
+      <rect x="20" y="25" width="360" height="30" rx="15" fill="none" stroke="var(--line)" stroke-width="1" />
+      ${nodes}
+    </svg>`;
+  }
+
+  function renderProgressTrack() {
+    progressTrack.innerHTML = "";
+    const levels = currentTrack.levels;
+    levels.forEach((lvl, i) => {
+      const done = state.completed[i];
+      const isCurrent = i === state.current;
+      const unlocked = done || isCurrent || (i > 0 && state.completed[i - 1]);
+      const div = document.createElement("div");
+      div.className = "node" + (done ? " done" : "") + (isCurrent ? " current" : "") + (unlocked ? " unlocked" : "");
+      div.innerHTML = `<span class="dot"></span><span>${lvl.label}</span>`;
+      if (unlocked) div.addEventListener("click", () => goToLevel(i));
+      progressTrack.appendChild(div);
+      if (i < levels.length - 1) {
+        const line = document.createElement("div");
+        line.className = "track-line";
+        progressTrack.appendChild(line);
+      }
+    });
+  }
+
+  function goToLevel(i) {
+    state.current = i;
+    hintStep = 0;
+    hintText.hidden = true;
+    renderLevel();
+    renderProgressTrack();
+    renderSchematic();
+  }
+
+  function renderLevel() {
+    const lvl = currentTrack.levels[state.current];
+    storyText.innerHTML = lvl.story.join("");
+    conceptSyntax.textContent = lvl.concept;
+    editorFileName.textContent = lvl.key + ".js";
+    const draft = loadDraft(state.current);
+    codeEditor.value = draft !== null ? draft : lvl.starter;
+    consoleOutput.innerHTML = `<span class="placeholder">Output will appear here when you run your code.</span>`;
+    hintText.hidden = true;
+    hintText.textContent = "";
+    hintBtn.textContent = "Need a hint?";
+  }
+
+  function renderFinale() {
+    const f = currentTrack.finale;
+    finaleCard.innerHTML = `
+      <h2>${f.heading}</h2>
+      ${f.body.join("")}
+      <ul class="recap">${f.recap.map((r) => `<li>${r}</li>`).join("")}</ul>
+      <p style="color: var(--text-dim); font-size: 0.9rem;">Every line you wrote was real JavaScript.</p>
+      <div style="display:flex; gap:10px; margin-top: 8px;">
+        <button class="ghost-btn" id="replayBtn">Play again</button>
+        <button class="ghost-btn" id="finaleBackBtn">Choose another mission</button>
+      </div>`;
+    document.getElementById("replayBtn").addEventListener("click", replayCurrent);
+    document.getElementById("finaleBackBtn").addEventListener("click", () => { finaleOverlay.hidden = true; backToSelect(); });
+  }
+
+  function replayCurrent() {
+    state = { current: 0, completed: currentTrack.levels.map(() => false) };
+    saveState();
+    try { currentTrack.levels.forEach((_, i) => localStorage.removeItem(draftKey(currentTrack.key, i))); } catch (e) {}
+    finaleOverlay.hidden = true;
+    goToLevel(0);
+  }
+
+  hintBtn.addEventListener("click", () => {
+    const lvl = currentTrack.levels[state.current];
+    hintStep = Math.min(hintStep + 1, lvl.hints.length);
+    hintText.textContent = lvl.hints.slice(0, hintStep).join(" ");
+    hintText.hidden = false;
+    hintBtn.textContent = hintStep < lvl.hints.length ? "Another hint?" : "That's all the hints";
+  });
+
+  resetBtn.addEventListener("click", () => {
+    const lvl = currentTrack.levels[state.current];
+    codeEditor.value = lvl.starter;
+    saveDraft(state.current, lvl.starter);
+  });
+
+  codeEditor.addEventListener("input", () => saveDraft(state.current, codeEditor.value));
+  codeEditor.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const start = codeEditor.selectionStart, end = codeEditor.selectionEnd;
+      codeEditor.value = codeEditor.value.slice(0, start) + "  " + codeEditor.value.slice(end);
+      codeEditor.selectionStart = codeEditor.selectionEnd = start + 2;
+    }
+  });
+
+  runBtn.addEventListener("click", () => {
+    const lvl = currentTrack.levels[state.current];
+    const code = codeEditor.value;
+    const result = lvl.test(code);
+
+    let html = "";
+    result.logs.forEach((l) => { html += `<div class="log-line">&gt; ${escapeHtml(l)}</div>`; });
+    html += result.success ? `<div class="ok-line">✓ ${escapeHtml(result.message)}</div>` : `<div class="fail-line">✗ ${escapeHtml(result.message)}</div>`;
+    consoleOutput.innerHTML = html;
+
+    if (result.success) {
+      state.completed[state.current] = true;
+      saveState();
+      renderProgressTrack();
+      renderSchematic();
+      if (state.current < currentTrack.levels.length - 1) {
+        const cont = document.createElement("div");
+        cont.className = "console-continue";
+        const btn = document.createElement("button");
+        btn.className = "primary-btn";
+        btn.textContent = "Continue ▸";
+        btn.addEventListener("click", () => goToLevel(state.current + 1));
+        cont.appendChild(btn);
+        consoleOutput.appendChild(cont);
+      } else {
+        setTimeout(() => { renderFinale(); finaleOverlay.hidden = false; }, 600);
+      }
+    }
+  });
+
+  refreshSelectScreen();
+})();
+</script>
+</body>
+</html>
